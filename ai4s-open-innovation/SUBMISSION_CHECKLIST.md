@@ -16,9 +16,9 @@
 
 - [ ] Complete the official competition registration form
 - [ ] Confirm Kaggle team name and member list
-- [ ] Record demo video, maximum 5 minutes
-- [ ] Upload video publicly or attach it to Kaggle
-- [ ] Add the final public video link to KAGGLE_WRITEUP.md
+- [x] Record demo video, maximum 5 minutes
+- [x] Upload video publicly or attach it to Kaggle
+- [x] Add the final public video link to KAGGLE_WRITEUP.md
 - [ ] Create the official Kaggle Writeup
 - [ ] Paste/adapt the content from KAGGLE_WRITEUP.md
 - [ ] Add public repository link
