@@ -1,0 +1,62 @@
+name: AI4S Benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: ai4s-open-innovation
+        run: pip install -r requirements.txt
+
+      - name: Download RxRx1 metadata and embeddings
+        working-directory: ai4s-open-innovation
+        run: python download_data.py
+
+      - name: Run V0 baseline
+        working-directory: ai4s-open-innovation
+        run: python baseline.py
+
+      - name: Run V2 cell-type benchmark
+        working-directory: ai4s-open-innovation
+        run: python v2_celltype.py
+
+      - name: Build benchmark summary
+        working-directory: ai4s-open-innovation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          art = Path("artifacts")
+          v0 = json.loads((art / "metrics.json").read_text())
+          v2 = json.loads((art / "v2_summary.json").read_text())
+
+          summary = {
+              "v0_single_holdout_accuracy": v0["accuracy"],
+              "v0_single_holdout_experiment": v0["held_out_experiment"],
+              **v2,
+          }
+          (art / "benchmark_summary.json").write_text(json.dumps(summary, indent=2))
+          print(json.dumps(summary, indent=2))
+          PY
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai4s-benchmark-results
+          path: ai4s-open-innovation/artifacts/
+          if-no-files-found: error
+          retention-days: 30
