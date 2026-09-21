@@ -33,6 +33,10 @@ jobs:
         working-directory: ai4s-open-innovation
         run: python v2_celltype.py
 
+      - name: Run V3 batch-correction ensemble
+        working-directory: ai4s-open-innovation
+        run: python v3_ensemble.py
+
       - name: Build benchmark summary
         working-directory: ai4s-open-innovation
         run: |
@@ -43,11 +47,13 @@ jobs:
           art = Path("artifacts")
           v0 = json.loads((art / "metrics.json").read_text())
           v2 = json.loads((art / "v2_summary.json").read_text())
+          v3 = json.loads((art / "v3_summary.json").read_text())
 
           summary = {
               "v0_single_holdout_accuracy": v0["accuracy"],
               "v0_single_holdout_experiment": v0["held_out_experiment"],
               **v2,
+              "v3": v3,
           }
           (art / "benchmark_summary.json").write_text(json.dumps(summary, indent=2))
           print(json.dumps(summary, indent=2))
