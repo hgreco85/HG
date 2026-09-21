@@ -1,49 +1,57 @@
-# AI4S Open Innovation — V0
+# AI4S Open Innovation — Phenotype Response Copilot
 
-**Category:** End-to-End System  
-**Working title:** Phenotype Response Copilot
+**Category:** End-to-End System
 
-A lightweight, reproducible AI pipeline for microscopy phenotype analysis using public RxRx1 metadata and pretrained deep-learning embeddings.
+Phenotype Response Copilot is a lightweight, reproducible AI system for microscopy-based phenotype analysis. It uses public RxRx1 embeddings to identify perturbation-specific cellular phenotypes while reducing cross-experiment variability.
 
-## V0 workflow
-1. Download public RxRx1 metadata and pretrained embeddings.
-2. Join embeddings with experimental metadata.
-3. Standardize embeddings.
-4. Build phenotype prototypes for siRNA perturbations.
-5. Evaluate cross-batch retrieval/classification.
-6. Produce interpretable outputs and confidence margins.
-7. Expose the pipeline through a Streamlit demo.
+## Current validated result
+
+The current V2 benchmark uses leave-one-experiment-out validation over **51 experiments** and reports:
+
+- **Mean accuracy:** 97.29%
+- **Median accuracy:** 98.46%
+- **Experiments evaluated:** 51
+- **U2OS-04:** 80.19%
+- **U2OS-05:** 92.38%
+
+The V2 improvement comes from two simple but biologically meaningful choices:
+
+1. build perturbation prototypes only from the **same cell type** as the held-out experiment;
+2. average image-site embeddings to the **well level** before classification.
+
+This substantially improved the difficult U2OS experiments while maintaining strong performance across HEPG2, HUVEC and RPE.
 
 ## Dataset
-RxRx1 contains 125,510 fluorescence microscopy images across four cell types and 1,138 siRNA perturbations. V0 uses the official ~1 MB metadata archive and ~51 MB pretrained embedding archive instead of downloading ~46 GB of images.
 
-Metadata: https://storage.googleapis.com/rxrx/rxrx1/rxrx1-metadata.zip
+V0/V2 use the public RxRx1 dataset from Recursion. The repository downloads the official metadata and pretrained deep-learning embeddings, avoiding the need to download the full image archive.
 
-Embeddings: https://storage.googleapis.com/rxrx/rxrx1/rxrx1-dl-embeddings.zip
+Dataset page:
+https://www.rxrx.ai/rxrx1
 
-Dataset page: https://www.rxrx.ai/rxrx1
+## Reproduce
 
-## Quick start
-
-    python -m venv .venv
+    cd ai4s-open-innovation
     pip install -r requirements.txt
     python download_data.py
-    python baseline.py
-    streamlit run demo.py
+    python v2_celltype.py
 
-## Output
-- artifacts/metrics.json
-- artifacts/predictions.csv
-- artifacts/prototypes.npz
+Or run the GitHub Actions workflow:
 
-## Competition deliverables
-- Public reproducible code repository
-- Demo video <= 5 minutes
-- Technical report / Kaggle Writeup
-- Required official registration form
+**Actions → AI4S Benchmark → Run workflow**
 
-## Status
-V0 scaffold. Next: run cross-experiment validation, add batch-correction ablations, add microscopy visuals and package the final demo/report.
+The workflow automatically downloads the public data, runs V0 and V2, builds the benchmark summary, and uploads the generated artifacts.
 
-## Disclaimer
-Research prototype only; not a diagnostic or clinical decision-support system.
+## Project files
+
+- `download_data.py` — public-data downloader
+- `baseline.py` — original prototype baseline
+- `v2_celltype.py` — validated V2 method
+- `demo.py` — lightweight Streamlit interface
+- `TECHNICAL_REPORT.md` — technical report
+- `KAGGLE_WRITEUP.md` — submission-ready writeup
+- `DEMO_SCRIPT.md` — <=5 minute demo-video script
+- `SUBMISSION_CHECKLIST.md` — final submission checklist
+
+## Intended use
+
+This is a research prototype for phenotype analysis and experimental triage. It is **not** a clinical or diagnostic system.
