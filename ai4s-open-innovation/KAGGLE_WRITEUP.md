@@ -6,7 +6,7 @@
 
 ## Demo Video
 
-Public demo video: **TO ADD BEFORE SUBMISSION**
+Public demo video: https://youtu.be/tl43Blxi2JQ
 
 Maximum duration: 5 minutes.
 
