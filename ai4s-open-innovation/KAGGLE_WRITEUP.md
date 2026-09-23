@@ -14,23 +14,21 @@ https://github.com/hgreco85/HG/tree/main/ai4s-open-innovation
 
 ## Project Summary
 
-Phenotype Response Copilot is a reproducible AI system for microscopy-based phenotype analysis. It addresses a recurring problem in high-content biological experiments: biological perturbation signal can be obscured by variation between experiments and cellular contexts.
+Phenotype Response Copilot is a reproducible AI system for microscopy-based phenotype analysis.
 
-The current champion, **V7 Nested Blend**, combines two transparent prototype-based views of each held-out experiment: the original standardized embedding space and an OAS-whitened space. Crucially, the RAW/OAS blend weight is selected by nested leave-one-experiment-out validation using only the outer training data.
+The current champion, **V7 Nested Blend**, combines RAW and OAS-whitened prototype similarities. The blend weight is selected by nested experiment-level validation using only training data.
 
-Across 51 held-out experiments, V7 achieves **97.4938% mean accuracy** and **98.6842% median accuracy**, improving the frozen V2 baseline by **+0.2055 percentage points**. V7 wins 35 folds, ties 11 and loses 5.
+Across 51 held-out RxRx1 experiments, V7 achieves **97.4938% mean accuracy** and **98.6842% median accuracy**, improving frozen V2 by **+0.2055 percentage points**. It wins 35 folds, ties 11 and loses 5.
 
 ## Why this is relevant to organ-on-chip
 
-Organ-on-chip experiments can contain multiple wells, imaging sites, treatments, time points and biological contexts. The same analytical challenge appears repeatedly: separate real phenotype response from technical and contextual variability.
+Organ-on-chip experiments contain multiple wells, imaging sites, treatments, time points and biological contexts. The same analytical challenge appears repeatedly: distinguish biological signal from contextual and technical variability.
 
-Phenotype Response Copilot provides a reusable pattern:
+The reusable pattern is:
 
-**Microscopy → embeddings → well-level aggregation → context-aware phenotype comparison → experimental triage/reporting**
+**Microscopy → embeddings → experimental-unit aggregation → context-aware phenotype comparison → experimental triage/reporting**
 
-The current validation uses RxRx1 rather than a real organ-on-chip dataset. The result is therefore a cross-experiment microscopy benchmark, not a direct organ-on-chip performance claim.
-
-## Key Results
+## Main RxRx1 validation
 
 | Metric | V2 | V7 |
 |---|---:|---:|
@@ -45,23 +43,39 @@ Hard cases:
 - U2OS-05: 92.38% → **93.61%**
 - RPE-08: 94.24% → **94.97%**
 
+## External gut-on-chip transfer check
+
+To test whether the adaptive idea transfers beyond RxRx1, we ran a separate public gut-on-chip microscopy experiment using Zenodo record 14745113.
+
+We used **95 brightfield images** across **5 days** and predicted culture ratio 7:3 vs 9:1 under leave-one-day-out validation.
+
+| Metric | Baseline | V7-style |
+|---|---:|---:|
+| Mean balanced accuracy | 69.57% | **70.90%** |
+| Mean accuracy | 68.35% | **70.26%** |
+| Balanced-accuracy delta | — | **+1.33 pp** |
+| Held-out days | 5 | 5 |
+
+Outcome: **1 improved / 4 unchanged / 0 worse**.
+
+The signal is encouraging but preliminary: the dataset is small and most of the gain comes from Day 1. We present this as **proof of transfer**, not broad OoC validation.
+
 ## Technical approach
 
-The pipeline:
-1. downloads public RxRx1 metadata and embeddings;
-2. aggregates image sites to the well level;
-3. holds out one complete experiment;
-4. trains only on experiments from the same cell type;
-5. fits preprocessing on training only;
-6. computes RAW and OAS-whitened perturbation-prototype similarities;
-7. chooses the blend weight through nested experiment-level CV inside the training data;
-8. applies the frozen blend to the held-out experiment.
+1. Aggregate microscopy sites to the experimental unit.
+2. Hold out an entire experiment/day.
+3. Fit preprocessing only on training data.
+4. Compute RAW and OAS-whitened prototype similarities.
+5. Select the blend weight through nested validation inside training.
+6. Freeze the choice and score the held-out unit.
 
 ## Validation and leakage control
 
-The outer evaluation is leave-one-experiment-out across 51 experiments. No held-out labels or feature moments are used for scaling, covariance estimation or blend selection.
+For RxRx1, the held-out experiment is never used for scaling, covariance estimation or blend selection.
 
-The internal metric is perturbation-classification accuracy. **This is not an official Kaggle leaderboard score.** AI4S Open Innovation is an expert-judged hackathon, with evaluation based on impact, technical innovation, validation, reproducibility and presentation.
+For the external gut-on-chip test, the held-out day is likewise excluded from all adaptive selection.
+
+The reported metrics are **internal validation results**, not official Kaggle leaderboard scores.
 
 ## Reproducibility
 
@@ -72,8 +86,7 @@ The internal metric is perturbation-classification accuracy. **This is not an of
     python v2_celltype.py
     python v7_nested_blend.py
     python experiment_engine.py
-
-No proprietary dataset or paid model API is required.
+    python external_ooc_validation.py
 
 ## Technical Report
 
@@ -81,8 +94,8 @@ https://github.com/hgreco85/HG/blob/main/ai4s-open-innovation/TECHNICAL_REPORT.m
 
 ## Limitations
 
-The benchmark uses RxRx1 rather than real organ-on-chip data. The system is a research prototype and does not provide diagnostic or treatment recommendations.
+The external OoC dataset is small and its label is culture ratio, not treatment response or phenotype quality. The project is a research prototype and does not provide diagnostic or treatment recommendations.
 
 ## Next step
 
-The highest-value next step is a small external validation on real organ-on-chip microscopy or embeddings. Further micro-tuning on the same RxRx1 benchmark has lower expected value than proving transfer to the target domain.
+The most valuable next step is a larger external organ-on-chip validation with labels closer to treatment response, toxicity or phenotype quality.

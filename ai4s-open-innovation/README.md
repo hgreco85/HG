@@ -6,19 +6,15 @@ Phenotype Response Copilot is a lightweight, reproducible AI system for microsco
 
 ## Why this matters for organ-on-chip
 
-Organ-on-chip experiments often combine multiple wells, imaging sites, batches, treatments and biological contexts. That makes it difficult to tell whether a phenotype shift reflects a real biological response or experimental variability.
+Organ-on-chip experiments often combine multiple wells, imaging sites, batches, treatments and biological contexts. Phenotype Response Copilot is designed as a reusable analysis layer:
 
-Phenotype Response Copilot is designed as a reusable analysis layer:
+**Microscopy images → embeddings → experimental-unit aggregation → context-aware phenotype comparison → experimental triage/reporting**
 
-**Microscopy images → embeddings → well-level aggregation → context-aware phenotype comparison → experimental triage/reporting**
+## Current champion: V7 Nested Blend
 
-The current validation uses RxRx1 rather than a real organ-on-chip dataset, so the reported accuracy is a proof of cross-experiment phenotype recovery, not an organ-on-chip performance claim.
+V7 preserves the V2 same-cell-type, well-level prototype pipeline and learns how much RAW vs OAS-whitened similarity to use **inside each outer training fold only**.
 
-## Current validated result
-
-The current champion is **V7 Nested Blend**. It preserves the V2 same-cell-type, well-level prototype pipeline and learns how much RAW vs OAS-whitened similarity to use **inside each outer training fold only**.
-
-Across 51 leave-one-experiment-out evaluations:
+Across 51 leave-one-experiment-out RxRx1 evaluations:
 
 | Metric | V2 | V7 |
 |---|---:|---:|
@@ -28,38 +24,47 @@ Across 51 leave-one-experiment-out evaluations:
 | Mean delta | — | **+0.2055 pp** |
 | Fold outcomes | — | **35 wins / 11 ties / 5 losses** |
 
-By cell type, mean accuracy moved from V2 → V7:
-
+By cell type:
 - HEPG2: 97.0254% → **97.3650%**
 - HUVEC: 97.9930% → **98.0199%**
 - RPE: 97.8350% → **98.0639%**
 - U2OS: 93.2806% → **93.9973%**
 
-Hard cases improved materially:
+Selected hard cases:
 - U2OS-04: 80.1948% → **82.0617%**
 - U2OS-05: 92.3770% → **93.6066%**
 - RPE-08: 94.2370% → **94.9675%**
 
+## External gut-on-chip transfer check
+
+A separate low-cost external validation was run on a public **gut-on-chip brightfield microscopy dataset** from Zenodo (record 14745113).
+
+Task: recover the culture seeding ratio (7:3 vs 9:1) while holding out an entire day at a time.
+
+- Images used: **95**
+- Held-out days: **5**
+- Baseline mean balanced accuracy: **69.57%**
+- V7-style mean balanced accuracy: **70.90%**
+- Delta: **+1.33 pp**
+- Baseline mean accuracy: **68.35%**
+- V7-style mean accuracy: **70.26%**
+- Fold outcome: **1 improved / 4 unchanged / 0 worse**
+
+The gain is preliminary and comes mainly from Day 1, so this is **evidence of transfer**, not proof of broad organ-on-chip generalization.
+
 ## Validation design and leakage control
 
-Evaluation is leave-one-experiment-out across 51 experiments. For each outer fold:
+RxRx1 evaluation is leave-one-experiment-out across 51 experiments. For each outer fold:
 1. one complete experiment is held out;
 2. all preprocessing is fit on outer-train only;
-3. V7 selects the RAW/OAS blend weight using nested leave-one-experiment-out validation inside the outer training set;
+3. V7 selects the RAW/OAS blend weight using nested leave-one-experiment-out validation inside outer-train;
 4. the held-out experiment is scored once with that frozen choice.
 
-Held-out labels are never used to choose the blend weight.
+The gut-on-chip transfer test uses the same principle at the day level: weight selection occurs only inside the training days.
 
-## Important competition-metric note
+## Competition-metric note
 
-AI4S Open Innovation is a judged hackathon, not a leaderboard competition with one official predictive metric. The 97.49% figure is therefore an **internal validation result**, not an official Kaggle score. The official judging criteria weight impact, technical innovation, validation, reproducibility and presentation.
-
-## Dataset
-
-V2/V7 use the public RxRx1 dataset from Recursion. The repository downloads official metadata and pretrained embeddings, avoiding the full image archive.
-
-Dataset page:
-https://www.rxrx.ai/rxrx1
+AI4S Open Innovation is a judged hackathon, not a leaderboard competition with one official predictive metric. The 97.49% RxRx1 result and 70.90% external balanced accuracy are **internal validation metrics**, not official Kaggle scores.
 
 ## Reproduction
 
@@ -69,21 +74,22 @@ https://www.rxrx.ai/rxrx1
     python download_data.py
     python v2_celltype.py
     python v7_nested_blend.py
-
-For the automated comparison:
-
     python experiment_engine.py
 
-The same benchmark is also wired to Railway → Modal for low-cost remote execution.
+External OoC transfer:
+
+    python external_ooc_validation.py
 
 ## Project files
 
-- `download_data.py` — public-data downloader
+- `download_data.py` — RxRx1 downloader
 - `v2_celltype.py` — frozen V2 baseline
-- `v7_nested_blend.py` — current validated champion
-- `experiment_engine.py` — reproducible V2/V7 comparison and promotion gate
-- `V7_VALIDATION.md` — audit summary of the promoted result
-- `demo.py` — lightweight Streamlit interface
+- `v7_nested_blend.py` — current champion
+- `experiment_engine.py` — reproducible V2/V7 comparison
+- `external_ooc_validation.py` — external gut-on-chip transfer test
+- `V7_VALIDATION.md` — V7 audit
+- `EXTERNAL_OOC_VALIDATION.md` — external transfer audit
+- `demo.py` — Streamlit interface
 - `TECHNICAL_REPORT.md` — technical report
 - `KAGGLE_WRITEUP.md` — submission-ready writeup
 

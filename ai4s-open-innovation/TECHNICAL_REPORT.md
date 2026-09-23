@@ -2,21 +2,29 @@
 
 ## 1. Project summary
 
-Phenotype Response Copilot is an end-to-end research prototype for AI-assisted cellular phenotype analysis using public RxRx1 microscopy-derived embeddings.
+Phenotype Response Copilot is an end-to-end research prototype for AI-assisted cellular phenotype analysis.
 
-The current validated champion, **V7 Nested Blend**, reaches **97.4938% mean accuracy** and **98.6842% median accuracy** across **51 leave-one-experiment-out evaluations**. Relative to the frozen V2 baseline, mean accuracy improves by **+0.2055 percentage points**.
+The current validated champion, **V7 Nested Blend**, reaches **97.4938% mean accuracy** and **98.6842% median accuracy** across **51 leave-one-experiment-out RxRx1 evaluations**. Relative to frozen V2, mean accuracy improves by **+0.2055 percentage points**.
+
+A second, external proof-of-transfer was also run on a public gut-on-chip microscopy dataset. On 95 brightfield images evaluated with leave-one-day-out validation, the V7-style adaptive blend improved mean balanced accuracy from **69.57% to 70.90%** and mean accuracy from **68.35% to 70.26%**.
 
 ## 2. Application scenario and organ-on-chip relevance
 
-High-content microscopy experiments generate images across wells, plates, treatments, cell types and experimental batches. The intended analysis pattern is:
+The intended analysis pattern is:
 
 **Organ-on-chip microscopy → embeddings → aggregation by experimental unit → context-aware phenotype comparison → treatment-response ranking → experiment report**
 
-Current validation uses RxRx1 rather than real organ-on-chip data. The reported accuracy demonstrates cross-experiment phenotype recovery on a public microscopy benchmark and is not a direct organ-on-chip performance claim.
+RxRx1 remains the main controlled benchmark. The external gut-on-chip test adds a small real-domain transfer check, but it is not sufficient to claim broad organ-on-chip validation.
 
 ## 3. Data
 
-The project uses public RxRx1 metadata and pretrained embeddings from Recursion. No private, clinical or personally identifiable data are used.
+### RxRx1
+Public metadata and pretrained embeddings from Recursion.
+
+### External gut-on-chip transfer dataset
+Public Zenodo record 14745113, using the brightfield subset only. The transfer task is culture seeding-ratio recovery (7:3 vs 9:1), not phenotype quality, diagnosis or treatment efficacy.
+
+No private, clinical or personally identifiable data are used.
 
 ## 4. Frozen V2 baseline
 
@@ -28,47 +36,33 @@ V2:
 5. builds one perturbation prototype per class;
 6. classifies held-out wells by cosine similarity.
 
-V2 result:
+V2:
 - mean accuracy: **97.2882%**
 - median accuracy: **98.4553%**
 - experiments: **51**
 
 ## 5. V3–V6 exploration
 
-Several low-cost challengers were tested under the same 51-experiment outer validation:
+Low-cost challengers under the same 51-experiment outer validation:
 - V3 batch correction: 97.2914%
-- V4 Fisher-weighted geometry: 97.2882%
+- V4 Fisher geometry: 97.2882%
 - V5 OAS metric: 97.2453%
 - V6 nested adaptive RAW/OAS choice: 97.3553%
 
-V5 revealed an important pattern: OAS helped U2OS but harmed HUVEC, motivating a leakage-safe adaptive approach.
+V5 showed that OAS helped U2OS but could hurt HUVEC, motivating a blend rather than a hard switch.
 
 ## 6. V7 Nested Blend
 
 V7 combines RAW and OAS-whitened cosine similarity scores.
 
-Candidate RAW weights are:
+Candidate RAW weights:
 - 0.25
 - 0.50
 - 0.75
 
-For each outer fold, the weight is chosen by **nested leave-one-experiment-out cross-validation using only the outer training data**. The selected weight is then frozen and applied once to the held-out experiment.
+For each outer fold, the weight is chosen by **nested leave-one-experiment-out cross-validation using only outer training data**. The selected weight is frozen before the held-out experiment is scored.
 
-This avoids selecting a method or weight using the outer evaluation labels.
-
-## 7. Validation protocol
-
-Outer validation: leave one complete experiment out across 51 experiments.
-
-Within each outer training set:
-- StandardScaler is fit on training only.
-- OAS covariance is estimated from within-class residuals on training only.
-- RAW/OAS blend weight is selected using nested experiment-level CV.
-- The held-out experiment is not used in preprocessing or hyperparameter selection.
-
-The task metric used internally is classification accuracy because the experiment measures perturbation recovery. However, AI4S Open Innovation itself does **not** define one official predictive leaderboard metric; it is judged on project-level criteria.
-
-## 8. V7 results
+## 7. RxRx1 validation
 
 | Metric | V2 | V7 |
 |---|---:|---:|
@@ -77,14 +71,12 @@ The task metric used internally is classification accuracy because the experimen
 | Delta | — | **+0.2055 pp** |
 | Experiments | 51 | 51 |
 
-Per-fold comparison:
+Per-fold:
 - wins: **35**
 - ties: **11**
 - losses: **5**
-- median fold delta: **+0.1623 pp**
-- standard deviation of fold delta: **0.3537 pp**
-
-An exact sign test over non-tied folds gives a two-sided p-value of approximately **1.38×10⁻⁶**, supporting that the improvement is not driven by only one or two folds.
+- median delta: **+0.1623 pp**
+- std. dev. of fold delta: **0.3537 pp**
 
 By cell type:
 - HEPG2: 97.0254% → **97.3650%**
@@ -92,42 +84,55 @@ By cell type:
 - RPE: 97.8350% → **98.0639%**
 - U2OS: 93.2806% → **93.9973%**
 
-Selected hard cases:
-- U2OS-04: 80.1948% → **82.0617%**
-- U2OS-05: 92.3770% → **93.6066%**
-- RPE-08: 94.2370% → **94.9675%**
+## 8. External gut-on-chip transfer validation
 
-Largest observed degradations were small and concentrated in HUVEC:
-- HUVEC-15: −0.3290 pp
-- HUVEC-18: −0.3250 pp
+The external test uses pretrained ResNet18 image embeddings from 95 brightfield microscopy images and predicts culture ratio 7:3 vs 9:1.
 
-## 9. Reliability and limitations
+Validation: **leave one complete day out** across five days.
 
-Strengths:
-- complete experiment holdout rather than row-level random split;
-- preprocessing fit on training only;
-- nested selection for the blend weight;
-- explicit, inspectable perturbation prototypes;
-- deterministic public-data pipeline.
+| Metric | Baseline | V7-style |
+|---|---:|---:|
+| Mean balanced accuracy | 69.57% | **70.90%** |
+| Mean accuracy | 68.35% | **70.26%** |
+| Delta balanced accuracy | — | **+1.33 pp** |
+| Days | 5 | 5 |
 
-Limitations:
-- RxRx1 is not an organ-on-chip dataset;
-- perturbation identification is a proxy task, not treatment efficacy or toxicity prediction;
-- no cross-dataset external validation has yet been performed;
-- a strong internal accuracy result is not an official Kaggle judge score.
+Fold outcome:
+- **1 improved**
+- **4 unchanged**
+- **0 worse**
 
-## 10. Competition alignment
+Day 1:
+- accuracy: 71.43% → **80.95%**
+- balanced accuracy: 80.00% → **86.67%**
 
-AI4S Open Innovation is judged on:
-- Problem Importance & Potential Impact — 30%
-- Technical Approach & Innovation — 30%
-- Results & Validation — 20%
-- Reproducibility & Implementation Quality — 10%
-- Presentation Quality — 10%
+The other four held-out days were unchanged by the adaptive selection.
 
-V7 primarily strengthens the Results & Validation and Technical Approach sections. The largest remaining gap is direct validation on real organ-on-chip data.
+Interpretation: this is a favorable **proof-of-transfer signal**, not conclusive external validation. The sample is small and most of the gain comes from one held-out day.
 
-## 11. Reproduction
+## 9. Leakage and reliability
+
+RxRx1:
+- outer held-out experiment never used for scaling;
+- outer held-out experiment never used for OAS covariance;
+- outer held-out labels never used for blend selection;
+- blend selection occurs inside outer-train only.
+
+Gut-on-chip:
+- one day is held out entirely;
+- blend selection uses training days only;
+- held-out day labels are not used for weight selection.
+
+## 10. Limitations
+
+- RxRx1 remains the primary benchmark.
+- The external dataset is small: 95 images and 5 held-out days.
+- The external label is seeding ratio, not phenotype quality or therapeutic response.
+- The external improvement is concentrated in one day.
+- No clinical claims are supported.
+- Neither internal metric is an official Kaggle leaderboard score.
+
+## 11. Reproducibility
 
     git clone https://github.com/hgreco85/HG.git
     cd HG/ai4s-open-innovation
@@ -136,9 +141,12 @@ V7 primarily strengthens the Results & Validation and Technical Approach section
     python v2_celltype.py
     python v7_nested_blend.py
     python experiment_engine.py
-
-The Railway → Modal path provides the same low-cost automated benchmark.
+    python external_ooc_validation.py
 
 ## 12. Practical impact
 
-The system demonstrates a reproducible method for recovering biological phenotype signal under experiment-level distribution shift while retaining a transparent prototype-based decision process. The next scientifically meaningful step is external organ-on-chip validation rather than further micro-tuning on RxRx1.
+The project now demonstrates two complementary forms of evidence:
+1. strong experiment-level validation on RxRx1;
+2. a small but positive external transfer signal on real gut-on-chip microscopy.
+
+The highest-value next scientific step is a larger external OoC dataset with labels closer to phenotype quality, treatment response or toxicity—not further micro-tuning on RxRx1.
