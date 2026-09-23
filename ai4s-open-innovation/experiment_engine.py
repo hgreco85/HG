@@ -14,22 +14,21 @@ def run(name, script):
 def load(name):
     return json.loads((ART / name).read_text())
 
-# Cost-efficient active benchmark: rerun only the frozen champion and the new challenger.
 run("V2 CHAMPION", "v2_celltype.py")
 v2 = load("v2_summary.json")
 
-run("V6 NESTED ADAPTIVE CHALLENGER", "v6_nested_adaptive.py")
-v6 = load("v6_summary.json")
+run("V7 NESTED BLEND CHALLENGER", "v7_nested_blend.py")
+v7 = load("v7_summary.json")
 
 champion = float(v2["v2_mean_accuracy"])
-challenger = float(v6["v6_mean_accuracy"])
+challenger = float(v7["v7_mean_accuracy"])
 delta = challenger - champion
 threshold = 0.001
 
 summary = {
     "champion": "v2_celltype",
     "champion_mean_accuracy": champion,
-    "active_challenger": "v6_nested_adaptive",
+    "active_challenger": "v7_nested_blend",
     "active_challenger_mean_accuracy": challenger,
     "delta_accuracy": delta,
     "promotion_threshold": threshold,
@@ -38,14 +37,15 @@ summary = {
     "archived_validated_challengers": {
         "v3_batch": 0.9729139389804619,
         "v4_fisher_0.25": 0.972882303119653,
-        "v5_oas_cosine": 0.9724533641071925
+        "v5_oas_cosine": 0.9724533641071925,
+        "v6_nested_adaptive": 0.9735533222757254
     },
-    "v6_selection_counts": v6["selection_counts"],
-    "v6_by_cell_type": v6["by_cell_type"],
+    "v7_alpha_counts": v7["alpha_counts"],
+    "v7_by_cell_type": v7["by_cell_type"],
     "notes": [
-        "Only V2 and the active challenger are rerun to reduce Modal compute and Railway log volume.",
-        "Archived challenger scores are prior validated deterministic runs and are not used to choose V6.",
-        "V6 method selection is nested inside each outer training fold."
+        "Only V2 and the active challenger are rerun to reduce Modal compute.",
+        "V7 blend selection is nested inside each outer training fold.",
+        "Promotion still requires >=0.10 percentage-point mean accuracy improvement."
     ]
 }
 
