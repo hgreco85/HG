@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -12,8 +13,8 @@ missing = [k for k in required if not os.environ.get(k)]
 if missing:
     raise RuntimeError("Missing Railway variables: " + ", ".join(missing))
 
-cmd = ["modal", "run", "ai4s_modal.py"]
-print("Launching AI4S experiments on Modal...")
+cmd = [sys.executable, "-m", "modal", "run", "ai4s_modal.py"]
+print("Launching AI4S experiments on Modal...", flush=True)
 p = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True)
 
 print(p.stdout)
