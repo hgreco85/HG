@@ -20,7 +20,7 @@ image = (
     .add_local_dir(".", remote_path="/root/ai4s")
 )
 
-@app.function(image=image, timeout=3600, cpu=4, memory=8192, retries=2)
+@app.function(image=image, timeout=3600, cpu=4, memory=8192, retries=0)
 def run_external_ooc():
     root = Path("/root/ai4s")
     subprocess.run([sys.executable, "external_ooc_validation.py"], cwd=root, check=True)
