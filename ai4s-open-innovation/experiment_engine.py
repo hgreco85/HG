@@ -24,19 +24,16 @@ v3 = load("v3_summary.json")
 run("V4 FISHER-GEOMETRY CHALLENGERS", "v4_fisher_geometry.py")
 v4 = load("v4_summary.json")
 
+run("V5 OAS-METRIC CHALLENGERS", "v5_oas_metric.py")
+v5 = load("v5_summary.json")
+
 champion = float(v2["v2_mean_accuracy"])
 challengers = [
-    {
-        "family": "v3_batch",
-        "method": v3["best_method"],
-        "mean_accuracy": float(v3["best_mean_accuracy"]),
-    },
-    {
-        "family": "v4_fisher_geometry",
-        "method": v4["best_method"],
-        "mean_accuracy": float(v4["best_mean_accuracy"]),
-    },
+    {"family": "v3_batch", "method": v3["best_method"], "mean_accuracy": float(v3["best_mean_accuracy"])},
+    {"family": "v4_fisher_geometry", "method": v4["best_method"], "mean_accuracy": float(v4["best_mean_accuracy"])},
+    {"family": "v5_oas_metric", "method": v5["best_method"], "mean_accuracy": float(v5["best_mean_accuracy"])},
 ]
+
 best = max(challengers, key=lambda x: x["mean_accuracy"])
 delta = best["mean_accuracy"] - champion
 threshold = 0.001
@@ -56,7 +53,7 @@ summary = {
     "notes": [
         "V2 remains frozen unless a challenger improves mean accuracy by >=0.10 percentage points.",
         "Any promoted challenger still requires review of worst-case experiments and leakage risk.",
-        "V4 Fisher weights use training folds only."
+        "V4 and V5 use training folds only for learned transformations."
     ]
 }
 (ART / "experiment_engine_summary.json").write_text(json.dumps(summary, indent=2))
