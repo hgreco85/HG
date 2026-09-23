@@ -22,38 +22,53 @@ DATA.mkdir(exist_ok=True)
 ZIP_PATH = DATA / "GOC_mucus_poducing_protocol.zip"
 URL = "https://zenodo.org/records/14745113/files/GOC_mucus_poducing_protocol.zip?download=1"
 
-IMAGE_EXT = re.compile(r"\\.(?:tif|tiff|jpg|jpeg|png)$", re.I)
+VALID_EXT = {".tif", ".tiff", ".jpg", ".jpeg", ".png"}
 
 def parse_brightfield_name(name):
     base = Path(name).name
-    if not IMAGE_EXT.search(base):
+    suffix = Path(base).suffix.lower()
+    if suffix not in VALID_EXT:
         return None
-    stem = IMAGE_EXT.sub("", base)
+
+    stem = Path(base).stem
     low = stem.lower()
 
-    # Exclude staining/confocal names. Brightfield files follow GOC_[ratio]_[day]_[numerator].
     blocked = ("mucin", "dapi", "f-actin", "factin", "muc5ac", "vil1", "zo1")
     if any(tok in low for tok in blocked):
         return None
     if not low.startswith("goc_"):
         return None
 
-    tail = stem[4:]
-    # Accept common ratio encodings: 7to3, 7_3, 7-3, 7:3 (same for 9:1).
-    ratio_match = re.search(r"(?i)(7\\s*(?:to|_|-|:)\\s*3|9\\s*(?:to|_|-|:)\\s*1)", tail)
-    if not ratio_match:
+    # Expected brightfield examples:
+    # GOC_7to3_Day1_1.tif
+    # GOC_9to1_Day8_12.tif
+    parts = stem.split("_")
+    if len(parts) < 4:
         return None
 
-    ratio_raw = re.sub(r"\\s+", "", ratio_match.group(1).lower())
-    ratio = "7to3" if ratio_raw.startswith("7") else "9to1"
-
-    rest = tail[ratio_match.end():].lstrip("_- :")
-    nums = re.findall(r"\\d+", rest)
-    if not nums:
+    ratio_token = parts[1].lower().replace(" ", "")
+    normalized = (
+        ratio_token
+        .replace(":", "to")
+        .replace("-", "to")
+    )
+    if normalized in {"7to3", "7_3"}:
+        ratio = "7to3"
+    elif normalized in {"9to1", "9_1"}:
+        ratio = "9to1"
+    else:
         return None
-    day = int(nums[0])
+
+    day_token = next((p for p in parts[2:] if p.lower().startswith("day")), None)
+    if day_token is None:
+        return None
+    digits = "".join(ch for ch in day_token if ch.isdigit())
+    if not digits:
+        return None
+    day = int(digits)
     if day not in {1, 2, 4, 6, 8}:
         return None
+
     return ratio, day
 
 def download():
