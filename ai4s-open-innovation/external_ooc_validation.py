@@ -22,7 +22,39 @@ DATA.mkdir(exist_ok=True)
 ZIP_PATH = DATA / "GOC_mucus_poducing_protocol.zip"
 URL = "https://zenodo.org/records/14745113/files/GOC_mucus_poducing_protocol.zip?download=1"
 
-PATTERN = re.compile(r"GOC_(7to3|9to1)_Day(\\d+)_\\d+\\.(?:tif|tiff|jpg|jpeg)$", re.I)
+IMAGE_EXT = re.compile(r"\\.(?:tif|tiff|jpg|jpeg|png)$", re.I)
+
+def parse_brightfield_name(name):
+    base = Path(name).name
+    if not IMAGE_EXT.search(base):
+        return None
+    stem = IMAGE_EXT.sub("", base)
+    low = stem.lower()
+
+    # Exclude staining/confocal names. Brightfield files follow GOC_[ratio]_[day]_[numerator].
+    blocked = ("mucin", "dapi", "f-actin", "factin", "muc5ac", "vil1", "zo1")
+    if any(tok in low for tok in blocked):
+        return None
+    if not low.startswith("goc_"):
+        return None
+
+    tail = stem[4:]
+    # Accept common ratio encodings: 7to3, 7_3, 7-3, 7:3 (same for 9:1).
+    ratio_match = re.search(r"(?i)(7\\s*(?:to|_|-|:)\\s*3|9\\s*(?:to|_|-|:)\\s*1)", tail)
+    if not ratio_match:
+        return None
+
+    ratio_raw = re.sub(r"\\s+", "", ratio_match.group(1).lower())
+    ratio = "7to3" if ratio_raw.startswith("7") else "9to1"
+
+    rest = tail[ratio_match.end():].lstrip("_- :")
+    nums = re.findall(r"\\d+", rest)
+    if not nums:
+        return None
+    day = int(nums[0])
+    if day not in {1, 2, 4, 6, 8}:
+        return None
+    return ratio, day
 
 def download():
     if ZIP_PATH.exists() and ZIP_PATH.stat().st_size > 100_000_000:
@@ -39,19 +71,24 @@ def download():
 
 def list_brightfield(zf):
     rows = []
+    samples = []
     for name in zf.namelist():
-        if "Brightfield microscopy" not in name:
+        if len(samples) < 30 and Path(name).suffix.lower() in {".tif", ".tiff", ".jpg", ".jpeg", ".png"}:
+            samples.append(name)
+        parsed = parse_brightfield_name(name)
+        if not parsed:
             continue
-        base = Path(name).name
-        m = PATTERN.match(base)
-        if not m:
-            continue
-        ratio = m.group(1)
-        day = int(m.group(2))
+        ratio, day = parsed
         rows.append({"member": name, "ratio": ratio, "day": day})
+
     frame = pd.DataFrame(rows)
     if frame.empty:
-        raise RuntimeError("No brightfield files matched expected naming pattern.")
+        print("Sample image names from archive:", flush=True)
+        for s in samples:
+            print("  ", s, flush=True)
+        raise RuntimeError("No brightfield files matched flexible GOC_[ratio]_[day]_[numerator] pattern.")
+
+    print(f"Matched {len(frame)} brightfield images", flush=True)
     return frame.sort_values(["day", "ratio", "member"]).reset_index(drop=True)
 
 def extract_embeddings(zf, frame):
