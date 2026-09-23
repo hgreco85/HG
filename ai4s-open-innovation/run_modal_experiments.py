@@ -13,8 +13,9 @@ missing = [k for k in required if not os.environ.get(k)]
 if missing:
     raise RuntimeError("Missing Railway variables: " + ", ".join(missing))
 
-cmd = [sys.executable, "-m", "modal", "run", "ai4s_modal.py"]
-print("Launching AI4S experiments on Modal...", flush=True)
+modal_script = os.environ.get("AI4S_MODAL_SCRIPT", "ai4s_modal.py")
+cmd = [sys.executable, "-m", "modal", "run", modal_script]
+print(f"Launching Modal script: {modal_script}", flush=True)
 p = subprocess.run(cmd, cwd=ROOT, text=True, capture_output=True)
 
 print(p.stdout)
@@ -22,6 +23,7 @@ if p.stderr:
     print(p.stderr)
 
 result = {
+    "modal_script": modal_script,
     "returncode": p.returncode,
     "stdout_tail": p.stdout[-12000:],
     "stderr_tail": p.stderr[-8000:],
