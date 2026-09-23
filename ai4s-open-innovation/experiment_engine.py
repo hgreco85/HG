@@ -12,50 +12,43 @@ def run(name, script):
     subprocess.run([sys.executable, script], cwd=ROOT, check=True)
 
 def load(name):
-    p = ART / name
-    return json.loads(p.read_text()) if p.exists() else None
+    return json.loads((ART / name).read_text())
 
+# Cost-efficient active benchmark: rerun only the frozen champion and the new challenger.
 run("V2 CHAMPION", "v2_celltype.py")
 v2 = load("v2_summary.json")
 
-run("V3 BATCH CHALLENGERS", "v3_ensemble.py")
-v3 = load("v3_summary.json")
-
-run("V4 FISHER-GEOMETRY CHALLENGERS", "v4_fisher_geometry.py")
-v4 = load("v4_summary.json")
-
-run("V5 OAS-METRIC CHALLENGERS", "v5_oas_metric.py")
-v5 = load("v5_summary.json")
+run("V6 NESTED ADAPTIVE CHALLENGER", "v6_nested_adaptive.py")
+v6 = load("v6_summary.json")
 
 champion = float(v2["v2_mean_accuracy"])
-challengers = [
-    {"family": "v3_batch", "method": v3["best_method"], "mean_accuracy": float(v3["best_mean_accuracy"])},
-    {"family": "v4_fisher_geometry", "method": v4["best_method"], "mean_accuracy": float(v4["best_mean_accuracy"])},
-    {"family": "v5_oas_metric", "method": v5["best_method"], "mean_accuracy": float(v5["best_mean_accuracy"])},
-]
-
-best = max(challengers, key=lambda x: x["mean_accuracy"])
-delta = best["mean_accuracy"] - champion
+challenger = float(v6["v6_mean_accuracy"])
+delta = challenger - champion
 threshold = 0.001
 
-decision = "PROMOTE" if delta >= threshold else "KEEP_V2"
 summary = {
     "champion": "v2_celltype",
     "champion_mean_accuracy": champion,
-    "challengers": challengers,
-    "best_challenger_family": best["family"],
-    "best_challenger": best["method"],
-    "best_challenger_mean_accuracy": best["mean_accuracy"],
+    "active_challenger": "v6_nested_adaptive",
+    "active_challenger_mean_accuracy": challenger,
     "delta_accuracy": delta,
     "promotion_threshold": threshold,
-    "decision": decision,
+    "decision": "PROMOTE" if delta >= threshold else "KEEP_V2",
     "n_experiments": int(v2["n_experiments"]),
+    "archived_validated_challengers": {
+        "v3_batch": 0.9729139389804619,
+        "v4_fisher_0.25": 0.972882303119653,
+        "v5_oas_cosine": 0.9724533641071925
+    },
+    "v6_selection_counts": v6["selection_counts"],
+    "v6_by_cell_type": v6["by_cell_type"],
     "notes": [
-        "V2 remains frozen unless a challenger improves mean accuracy by >=0.10 percentage points.",
-        "Any promoted challenger still requires review of worst-case experiments and leakage risk.",
-        "V4 and V5 use training folds only for learned transformations."
+        "Only V2 and the active challenger are rerun to reduce Modal compute and Railway log volume.",
+        "Archived challenger scores are prior validated deterministic runs and are not used to choose V6.",
+        "V6 method selection is nested inside each outer training fold."
     ]
 }
+
 (ART / "experiment_engine_summary.json").write_text(json.dumps(summary, indent=2))
 print("\n=== AI4S EXPERIMENT ENGINE ===")
 print(json.dumps(summary, indent=2))
