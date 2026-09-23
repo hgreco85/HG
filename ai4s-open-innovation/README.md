@@ -80,6 +80,10 @@ External OoC transfer:
 
     python external_ooc_validation.py
 
+## Judge quick read
+
+For a one-page competition summary focused on problem, technical contribution, evidence and claim boundaries, see `JUDGE_QUICK_READ.md`.
+
 ## Project files
 
 - `download_data.py` — RxRx1 downloader
@@ -89,6 +93,7 @@ External OoC transfer:
 - `external_ooc_validation.py` — external gut-on-chip transfer test
 - `V7_VALIDATION.md` — V7 audit
 - `EXTERNAL_OOC_VALIDATION.md` — external transfer audit
+- `JUDGE_QUICK_READ.md` — one-page judge summary
 - `demo.py` — Streamlit interface
 - `TECHNICAL_REPORT.md` — technical report
 - `KAGGLE_WRITEUP.md` — submission-ready writeup

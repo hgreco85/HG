@@ -8,11 +8,15 @@
 
 Public demo video: https://youtu.be/tl43Blxi2JQ
 
+> **Version note:** the demo video was recorded with the validated V2 system. After recording, we completed V7 Nested Blend and a separate external gut-on-chip transfer validation. The workflow shown in the video remains the same; the current metrics and validation evidence are reported below and are fully reproducible from the public repository.
+
 ## Public Code Repository
 
 https://github.com/hgreco85/HG/tree/main/ai4s-open-innovation
 
 ## Project Summary
+
+**Judge quick take:** this project combines a transparent prototype-based phenotype engine, leakage-safe nested validation, and a preliminary external transfer check on real gut-on-chip microscopy.
 
 Phenotype Response Copilot is a reproducible AI system for microscopy-based phenotype analysis.
 
@@ -21,6 +25,14 @@ The current champion, **V7 Nested Blend**, combines RAW and OAS-whitened prototy
 Across 51 held-out RxRx1 experiments, V7 achieves **97.4938% mean accuracy** and **98.6842% median accuracy**, improving frozen V2 by **+0.2055 percentage points**. It wins 35 folds, ties 11 and loses 5.
 
 ## Why this is relevant to organ-on-chip
+
+**Problem → system → evidence → transfer**
+
+- **Problem:** microscopy phenotypes can be confounded by experiment, batch and biological context.
+- **System:** context-aware prototype matching with adaptive RAW/OAS geometry.
+- **Evidence:** 97.49% mean accuracy across 51 leave-one-experiment-out RxRx1 evaluations.
+- **Transfer:** positive preliminary signal on a real public gut-on-chip dataset under leave-one-day-out evaluation.
+
 
 Organ-on-chip experiments contain multiple wells, imaging sites, treatments, time points and biological contexts. The same analytical challenge appears repeatedly: distinguish biological signal from contextual and technical variability.
 
