@@ -14,74 +14,66 @@ https://github.com/hgreco85/HG/tree/main/ai4s-open-innovation
 
 ## Project Summary
 
-Phenotype Response Copilot is a reproducible AI system for microscopy-based phenotype analysis. It addresses a common problem in high-content biological experiments: biological perturbation signals can be obscured by variation between experiments, plates and cellular contexts.
+Phenotype Response Copilot is a reproducible AI system for microscopy-based phenotype analysis. It addresses a recurring problem in high-content biological experiments: biological perturbation signal can be obscured by variation between experiments and cellular contexts.
 
-The system uses public RxRx1 microscopy embeddings and experimental metadata. Rather than relying on a large black-box model, it builds interpretable perturbation prototypes and classifies held-out experiments using cosine similarity.
+The current champion, **V7 Nested Blend**, combines two transparent prototype-based views of each held-out experiment: the original standardized embedding space and an OAS-whitened space. Crucially, the RAW/OAS blend weight is selected by nested leave-one-experiment-out validation using only the outer training data.
 
-The validated V2 method introduces two biologically motivated changes: image sites are aggregated to the well level, and each held-out experiment is compared only with perturbation prototypes learned from the same cell type.
-
-Across 51 leave-one-experiment-out evaluations, V2 achieves **97.29% mean accuracy** and **98.46% median accuracy**.
+Across 51 held-out experiments, V7 achieves **97.4938% mean accuracy** and **98.6842% median accuracy**, improving the frozen V2 baseline by **+0.2055 percentage points**. V7 wins 35 folds, ties 11 and loses 5.
 
 ## Why this is relevant to organ-on-chip
 
-Organ-on-chip experiments can contain multiple wells, imaging sites, treatments, time points and biological contexts. The same problem appears repeatedly: separate true phenotype response from technical and contextual variability.
+Organ-on-chip experiments can contain multiple wells, imaging sites, treatments, time points and biological contexts. The same analytical challenge appears repeatedly: separate real phenotype response from technical and contextual variability.
 
-Phenotype Response Copilot provides a reusable analysis pattern:
+Phenotype Response Copilot provides a reusable pattern:
 
 **Microscopy → embeddings → well-level aggregation → context-aware phenotype comparison → experimental triage/reporting**
 
-The current validation uses RxRx1 rather than a real organ-on-chip dataset, so the reported accuracy is not presented as organ-on-chip validation. The contribution is a reproducible cross-experiment phenotype-analysis pipeline that can be transferred to organ-on-chip data once domain-specific embeddings and labels are available.
+The current validation uses RxRx1 rather than a real organ-on-chip dataset. The result is therefore a cross-experiment microscopy benchmark, not a direct organ-on-chip performance claim.
 
 ## Key Results
 
-| Metric | V0 | V2 |
+| Metric | V2 | V7 |
 |---|---:|---:|
-| Mean accuracy | 92.35% | **97.29%** |
-| Median accuracy | — | **98.46%** |
+| Mean accuracy | 97.2882% | **97.4938%** |
+| Median accuracy | 98.4553% | **98.6842%** |
+| Mean improvement | — | **+0.2055 pp** |
 | Experiments | 51 | 51 |
-| U2OS-04 | 42.29% | **80.19%** |
-| U2OS-05 | 59.71% | **92.38%** |
+| Fold outcomes | — | **35 W / 11 T / 5 L** |
 
-The improvement is particularly important in difficult U2OS experiments. This suggests that respecting biological context and using the well as the experimental unit can be more valuable than adding generic dimensionality reduction or normalization.
+Hard cases:
+- U2OS-04: 80.19% → **82.06%**
+- U2OS-05: 92.38% → **93.61%**
+- RPE-08: 94.24% → **94.97%**
 
 ## Technical approach
 
 The pipeline:
-
 1. downloads public RxRx1 metadata and embeddings;
-2. joins experiment metadata with embeddings;
-3. aggregates multiple image sites to the well level;
-4. holds out one complete experiment;
-5. trains perturbation prototypes using only experiments from the same cell type;
-6. standardizes training features;
-7. classifies held-out wells by cosine similarity to perturbation prototypes;
-8. saves experiment-level metrics and auditable predictions.
+2. aggregates image sites to the well level;
+3. holds out one complete experiment;
+4. trains only on experiments from the same cell type;
+5. fits preprocessing on training only;
+6. computes RAW and OAS-whitened perturbation-prototype similarities;
+7. chooses the blend weight through nested experiment-level CV inside the training data;
+8. applies the frozen blend to the held-out experiment.
 
-The model is intentionally simple and interpretable: every prediction comes from similarity to an explicit perturbation prototype.
+## Validation and leakage control
 
-## Validation
+The outer evaluation is leave-one-experiment-out across 51 experiments. No held-out labels or feature moments are used for scaling, covariance estimation or blend selection.
 
-Evaluation uses **leave-one-experiment-out** validation across 51 experiments rather than random row-level splitting. This better tests robustness to experiment-level distribution shift.
-
-The earlier V0 formulation achieved approximately 92.35% mean accuracy. V2 raises this to 97.29% while strongly improving the weakest U2OS cases.
+The internal metric is perturbation-classification accuracy. **This is not an official Kaggle leaderboard score.** AI4S Open Innovation is an expert-judged hackathon, with evaluation based on impact, technical innovation, validation, reproducibility and presentation.
 
 ## Reproducibility
-
-The complete pipeline is public and does not require paid services or proprietary data.
-
-The easiest reproduction path is:
-
-**GitHub → Actions → AI4S Benchmark → Run workflow**
-
-That workflow automatically downloads the public data, runs the benchmark, prints the metrics and uploads the generated artifacts.
-
-Local reproduction is also available:
 
     git clone https://github.com/hgreco85/HG.git
     cd HG/ai4s-open-innovation
     pip install -r requirements.txt
     python download_data.py
     python v2_celltype.py
+    python v7_nested_blend.py
+    python experiment_engine.py
+
+No proprietary dataset or paid model API is required.
 
 ## Technical Report
 
@@ -89,10 +81,8 @@ https://github.com/hgreco85/HG/blob/main/ai4s-open-innovation/TECHNICAL_REPORT.m
 
 ## Limitations
 
-The current benchmark uses RxRx1 rather than real organ-on-chip experimental data. Results therefore demonstrate cross-experiment phenotype recovery on a public high-content microscopy benchmark, not validated performance on an organ-on-chip system.
-
-The model is intended for research use only and does not provide diagnostic or treatment recommendations.
+The benchmark uses RxRx1 rather than real organ-on-chip data. The system is a research prototype and does not provide diagnostic or treatment recommendations.
 
 ## Next step
 
-The highest-value next step is validation on a real organ-on-chip dataset, followed by treatment-versus-control phenotype-shift scoring, uncertainty calibration and automated experiment reporting.
+The highest-value next step is a small external validation on real organ-on-chip microscopy or embeddings. Further micro-tuning on the same RxRx1 benchmark has lower expected value than proving transfer to the target domain.

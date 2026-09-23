@@ -2,185 +2,143 @@
 
 ## 1. Project summary
 
-Phenotype Response Copilot is an end-to-end research prototype for AI-assisted cellular phenotype analysis. The system uses public microscopy-derived embeddings from RxRx1 to identify genetic perturbation phenotypes across experimental batches.
+Phenotype Response Copilot is an end-to-end research prototype for AI-assisted cellular phenotype analysis using public RxRx1 microscopy-derived embeddings.
 
-The project focuses on a practical challenge in high-content biological screening: preserving biologically meaningful perturbation signal while reducing variation caused by experimental context.
-
-The current validated V2 system achieves **97.29% mean accuracy** and **98.46% median accuracy** across **51 leave-one-experiment-out evaluations**.
+The current validated champion, **V7 Nested Blend**, reaches **97.4938% mean accuracy** and **98.6842% median accuracy** across **51 leave-one-experiment-out evaluations**. Relative to the frozen V2 baseline, mean accuracy improves by **+0.2055 percentage points**.
 
 ## 2. Application scenario and organ-on-chip relevance
 
-High-content microscopy experiments generate large numbers of images across wells, plates, treatments, cell types and experimental batches. A useful analytical system should distinguish phenotype signal from nuisance variation and provide transparent, reproducible outputs.
+High-content microscopy experiments generate images across wells, plates, treatments, cell types and experimental batches. The intended analysis pattern is:
 
-This problem is directly relevant to organ-on-chip workflows, where one experiment may contain multiple biological compartments, treatments, time points and technical replicates.
+**Organ-on-chip microscopy → embeddings → aggregation by experimental unit → context-aware phenotype comparison → treatment-response ranking → experiment report**
 
-The intended adaptation path is:
-
-**Organ-on-chip microscopy → image embeddings → aggregation by experimental unit → context-aware phenotype comparison → treatment-response ranking → experiment report**
-
-The current benchmark uses RxRx1 rather than a real organ-on-chip dataset. Therefore, the reported accuracy demonstrates cross-experiment phenotype recovery on a public high-content microscopy benchmark and should not be interpreted as direct organ-on-chip validation.
+Current validation uses RxRx1 rather than real organ-on-chip data. The reported accuracy demonstrates cross-experiment phenotype recovery on a public microscopy benchmark and is not a direct organ-on-chip performance claim.
 
 ## 3. Data
 
-The project uses the public **RxRx1** dataset from Recursion.
+The project uses public RxRx1 metadata and pretrained embeddings from Recursion. No private, clinical or personally identifiable data are used.
 
-RxRx1 contains fluorescence microscopy experiments across multiple cell types with siRNA perturbations. To keep reproduction lightweight, this implementation uses the official metadata plus pretrained deep-learning embeddings instead of requiring the full raw-image archive.
+## 4. Frozen V2 baseline
 
-No private, clinical or personally identifiable data are used.
+V2:
+1. aggregates image sites to the well level;
+2. holds out one complete experiment;
+3. restricts training to the same cell type;
+4. fits StandardScaler on training only;
+5. builds one perturbation prototype per class;
+6. classifies held-out wells by cosine similarity.
 
-## 4. System architecture
+V2 result:
+- mean accuracy: **97.2882%**
+- median accuracy: **98.4553%**
+- experiments: **51**
 
-The pipeline is:
+## 5. V3–V6 exploration
 
-1. download public metadata and pretrained embeddings;
-2. merge embeddings with experiment metadata;
-3. identify the cell type from the experiment;
-4. aggregate image-site embeddings to the well level;
-5. hold out one complete experiment;
-6. train perturbation prototypes only from experiments of the same cell type;
-7. standardize features using training data;
-8. compute one mean prototype per perturbation;
-9. classify held-out wells using cosine similarity;
-10. save experiment-level metrics and auditable predictions.
+Several low-cost challengers were tested under the same 51-experiment outer validation:
+- V3 batch correction: 97.2914%
+- V4 Fisher-weighted geometry: 97.2882%
+- V5 OAS metric: 97.2453%
+- V6 nested adaptive RAW/OAS choice: 97.3553%
 
-## 5. V0 baseline
+V5 revealed an important pattern: OAS helped U2OS but harmed HUVEC, motivating a leakage-safe adaptive approach.
 
-The first baseline pooled all available experiments to build perturbation prototypes.
+## 6. V7 Nested Blend
 
-A first single-experiment test on U2OS-05 produced:
+V7 combines RAW and OAS-whitened cosine similarity scores.
 
-- Accuracy: 59.71%
-- Test samples: 2,440
-- Features: 128
-- Classes: 1,139
+Candidate RAW weights are:
+- 0.25
+- 0.50
+- 0.75
 
-A broader leave-one-experiment-out evaluation later showed a mean accuracy of approximately **92.35%** across 51 experiments, revealing that U2OS-05 was one of the difficult cases rather than representative of overall performance.
+For each outer fold, the weight is chosen by **nested leave-one-experiment-out cross-validation using only the outer training data**. The selected weight is then frozen and applied once to the held-out experiment.
 
-## 6. V1 ablations
+This avoids selecting a method or weight using the outer evaluation labels.
 
-Two exploratory variants were tested:
+## 7. Validation protocol
 
-- plate normalization;
-- plate normalization plus PCA whitening.
+Outer validation: leave one complete experiment out across 51 experiments.
 
-Plate normalization did not materially improve the mean result, while PCA whitening reduced performance. These variants were not retained.
+Within each outer training set:
+- StandardScaler is fit on training only.
+- OAS covariance is estimated from within-class residuals on training only.
+- RAW/OAS blend weight is selected using nested experiment-level CV.
+- The held-out experiment is not used in preprocessing or hyperparameter selection.
 
-## 7. V2 method
+The task metric used internally is classification accuracy because the experiment measures perturbation recovery. However, AI4S Open Innovation itself does **not** define one official predictive leaderboard metric; it is judged on project-level criteria.
 
-V2 introduces two domain-aware changes.
+## 8. V7 results
 
-### Same-cell-type training
-
-For each held-out experiment, perturbation prototypes are built only from training experiments with the same cell type.
-
-This avoids mixing phenotype geometry across biologically distinct cellular contexts.
-
-### Well-level aggregation
-
-Multiple image sites from the same well are averaged before classification.
-
-This reduces image-level noise and makes the representation closer to the experimental unit being evaluated.
-
-## 8. Validation protocol
-
-Evaluation uses leave-one-experiment-out validation across **51 experiments**.
-
-For each fold:
-
-- one complete experiment is held out;
-- all remaining experiments of the same cell type form the training set;
-- training features are standardized;
-- one prototype is computed per perturbation;
-- each held-out well is assigned to the perturbation with highest cosine similarity.
-
-No held-out labels are used to construct the training prototypes.
-
-## 9. Results
-
-| Metric | V0 | V2 |
+| Metric | V2 | V7 |
 |---|---:|---:|
-| Mean accuracy | 92.35% | **97.29%** |
-| Median accuracy | — | **98.46%** |
+| Mean accuracy | 97.2882% | **97.4938%** |
+| Median accuracy | 98.4553% | **98.6842%** |
+| Delta | — | **+0.2055 pp** |
 | Experiments | 51 | 51 |
-| U2OS-04 | 42.29% | **80.19%** |
-| U2OS-05 | 59.71% | **92.38%** |
 
-Additional difficult V2 experiments include:
+Per-fold comparison:
+- wins: **35**
+- ties: **11**
+- losses: **5**
+- median fold delta: **+0.1623 pp**
+- standard deviation of fold delta: **0.3537 pp**
 
-- HUVEC-05: **86.85%**
-- HUVEC-18: **94.07%**
-- RPE-08: **94.24%**
+An exact sign test over non-tied folds gives a two-sided p-value of approximately **1.38×10⁻⁶**, supporting that the improvement is not driven by only one or two folds.
 
-Most other experiments score in the high-90% range.
+By cell type:
+- HEPG2: 97.0254% → **97.3650%**
+- HUVEC: 97.9930% → **98.0199%**
+- RPE: 97.8350% → **98.0639%**
+- U2OS: 93.2806% → **93.9973%**
 
-The main result is not just a higher aggregate score: V2 specifically improves some of the experiments that were weakest under the original formulation.
+Selected hard cases:
+- U2OS-04: 80.1948% → **82.0617%**
+- U2OS-05: 92.3770% → **93.6066%**
+- RPE-08: 94.2370% → **94.9675%**
 
-## 10. Interpretability and reliability
+Largest observed degradations were small and concentrated in HUVEC:
+- HUVEC-15: −0.3290 pp
+- HUVEC-18: −0.3250 pp
 
-The model is intentionally simple and inspectable.
+## 9. Reliability and limitations
 
-Every prediction is based on cosine similarity between a held-out well representation and explicit perturbation prototypes. This makes it possible to inspect:
+Strengths:
+- complete experiment holdout rather than row-level random split;
+- preprocessing fit on training only;
+- nested selection for the blend weight;
+- explicit, inspectable perturbation prototypes;
+- deterministic public-data pipeline.
 
-- the selected perturbation;
-- competing nearby perturbations;
-- similarity margins;
-- experiment-level failure cases.
+Limitations:
+- RxRx1 is not an organ-on-chip dataset;
+- perturbation identification is a proxy task, not treatment efficacy or toxicity prediction;
+- no cross-dataset external validation has yet been performed;
+- a strong internal accuracy result is not an official Kaggle judge score.
 
-The classification itself does not depend on a black-box generative model.
+## 10. Competition alignment
 
-Reliability is reinforced through leave-one-experiment-out validation rather than random row-level splitting, which better tests robustness to experiment-level distribution shift.
+AI4S Open Innovation is judged on:
+- Problem Importance & Potential Impact — 30%
+- Technical Approach & Innovation — 30%
+- Results & Validation — 20%
+- Reproducibility & Implementation Quality — 10%
+- Presentation Quality — 10%
 
-## 11. Reproducibility
+V7 primarily strengthens the Results & Validation and Technical Approach sections. The largest remaining gap is direct validation on real organ-on-chip data.
 
-The public repository contains:
-
-- public data downloader;
-- environment requirements;
-- V0 and V2 scripts;
-- Streamlit demo;
-- GitHub Actions benchmark workflow;
-- automatically generated result artifacts.
-
-The simplest reproduction path is:
-
-**GitHub → Actions → AI4S Benchmark → Run workflow**
-
-The benchmark can be reproduced without paid APIs or proprietary datasets.
-
-## 12. Limitations
-
-This project uses RxRx1 rather than real organ-on-chip experimental data.
-
-Therefore:
-
-- the current results should not be interpreted as direct validation on organ-on-chip systems;
-- performance may differ across laboratories, assays, imaging protocols and biological systems;
-- the task is perturbation identification, not clinical diagnosis or treatment recommendation;
-- the system has not been validated for patient-level or clinical use.
-
-## 13. Future work
-
-The most relevant next steps are:
-
-- validation on real organ-on-chip datasets;
-- image-level visual explanations;
-- treatment-versus-control phenotype-shift scoring;
-- uncertainty calibration;
-- cross-dataset generalization;
-- interactive experiment-report generation.
-
-## 14. Practical impact
-
-The main value of the approach is that it demonstrates a low-cost and highly reproducible way to recover biological phenotype signal across experimental batches while maintaining an interpretable pipeline.
-
-For organ-on-chip use, the architecture could support experiment triage, treatment-response comparison and automated reporting once validated on appropriate domain data.
-
-## 15. Reproduction
+## 11. Reproduction
 
     git clone https://github.com/hgreco85/HG.git
     cd HG/ai4s-open-innovation
     pip install -r requirements.txt
     python download_data.py
     python v2_celltype.py
+    python v7_nested_blend.py
+    python experiment_engine.py
 
-Alternatively, use the repository's **AI4S Benchmark** GitHub Actions workflow.
+The Railway → Modal path provides the same low-cost automated benchmark.
+
+## 12. Practical impact
+
+The system demonstrates a reproducible method for recovering biological phenotype signal under experiment-level distribution shift while retaining a transparent prototype-based decision process. The next scientifically meaningful step is external organ-on-chip validation rather than further micro-tuning on RxRx1.

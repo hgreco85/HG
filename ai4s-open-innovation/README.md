@@ -8,72 +8,85 @@ Phenotype Response Copilot is a lightweight, reproducible AI system for microsco
 
 Organ-on-chip experiments often combine multiple wells, imaging sites, batches, treatments and biological contexts. That makes it difficult to tell whether a phenotype shift reflects a real biological response or experimental variability.
 
-Phenotype Response Copilot is designed as a reusable analysis layer for that setting:
+Phenotype Response Copilot is designed as a reusable analysis layer:
 
 **Microscopy images → embeddings → well-level aggregation → context-aware phenotype comparison → experimental triage/reporting**
 
-The current validation uses RxRx1 rather than a real organ-on-chip dataset, so the reported accuracy is a proof of cross-experiment phenotype recovery, not an organ-on-chip performance claim. The same pipeline can be adapted to organ-on-chip experiments by replacing the input embeddings and defining the relevant biological context and treatment labels.
+The current validation uses RxRx1 rather than a real organ-on-chip dataset, so the reported accuracy is a proof of cross-experiment phenotype recovery, not an organ-on-chip performance claim.
 
 ## Current validated result
 
-The current V2 benchmark uses leave-one-experiment-out validation over **51 experiments** and reports:
+The current champion is **V7 Nested Blend**. It preserves the V2 same-cell-type, well-level prototype pipeline and learns how much RAW vs OAS-whitened similarity to use **inside each outer training fold only**.
 
-| Metric | V0 | V2 |
+Across 51 leave-one-experiment-out evaluations:
+
+| Metric | V2 | V7 |
 |---|---:|---:|
-| Mean accuracy | 92.35% | **97.29%** |
-| Median accuracy | — | **98.46%** |
-| Experiments evaluated | 51 | 51 |
-| U2OS-04 | 42.29% | **80.19%** |
-| U2OS-05 | 59.71% | **92.38%** |
+| Mean accuracy | 97.2882% | **97.4938%** |
+| Median accuracy | 98.4553% | **98.6842%** |
+| Experiments | 51 | 51 |
+| Mean delta | — | **+0.2055 pp** |
+| Fold outcomes | — | **35 wins / 11 ties / 5 losses** |
 
-The V2 improvement comes from two simple but biologically meaningful choices:
+By cell type, mean accuracy moved from V2 → V7:
 
-1. build perturbation prototypes only from the **same cell type** as the held-out experiment;
-2. average image-site embeddings to the **well level** before classification.
+- HEPG2: 97.0254% → **97.3650%**
+- HUVEC: 97.9930% → **98.0199%**
+- RPE: 97.8350% → **98.0639%**
+- U2OS: 93.2806% → **93.9973%**
 
-This substantially improved the difficult U2OS experiments while maintaining strong performance across HEPG2, HUVEC and RPE.
+Hard cases improved materially:
+- U2OS-04: 80.1948% → **82.0617%**
+- U2OS-05: 92.3770% → **93.6066%**
+- RPE-08: 94.2370% → **94.9675%**
+
+## Validation design and leakage control
+
+Evaluation is leave-one-experiment-out across 51 experiments. For each outer fold:
+1. one complete experiment is held out;
+2. all preprocessing is fit on outer-train only;
+3. V7 selects the RAW/OAS blend weight using nested leave-one-experiment-out validation inside the outer training set;
+4. the held-out experiment is scored once with that frozen choice.
+
+Held-out labels are never used to choose the blend weight.
+
+## Important competition-metric note
+
+AI4S Open Innovation is a judged hackathon, not a leaderboard competition with one official predictive metric. The 97.49% figure is therefore an **internal validation result**, not an official Kaggle score. The official judging criteria weight impact, technical innovation, validation, reproducibility and presentation.
 
 ## Dataset
 
-V0/V2 use the public RxRx1 dataset from Recursion. The repository downloads the official metadata and pretrained deep-learning embeddings, avoiding the need to download the full image archive.
+V2/V7 use the public RxRx1 dataset from Recursion. The repository downloads official metadata and pretrained embeddings, avoiding the full image archive.
 
 Dataset page:
 https://www.rxrx.ai/rxrx1
 
-## One-click reproduction
+## Reproduction
 
-The easiest way to reproduce the benchmark is:
-
-**GitHub → Actions → AI4S Benchmark → Run workflow**
-
-The workflow automatically:
-
-1. installs dependencies;
-2. downloads RxRx1 metadata and embeddings;
-3. runs the benchmark;
-4. prints the results;
-5. uploads the generated artifacts.
-
-No paid API or proprietary dataset is required.
-
-## Local reproduction
-
-    cd ai4s-open-innovation
+    git clone https://github.com/hgreco85/HG.git
+    cd HG/ai4s-open-innovation
     pip install -r requirements.txt
     python download_data.py
     python v2_celltype.py
+    python v7_nested_blend.py
+
+For the automated comparison:
+
+    python experiment_engine.py
+
+The same benchmark is also wired to Railway → Modal for low-cost remote execution.
 
 ## Project files
 
 - `download_data.py` — public-data downloader
-- `baseline.py` — original prototype baseline
-- `v2_celltype.py` — validated V2 method
+- `v2_celltype.py` — frozen V2 baseline
+- `v7_nested_blend.py` — current validated champion
+- `experiment_engine.py` — reproducible V2/V7 comparison and promotion gate
+- `V7_VALIDATION.md` — audit summary of the promoted result
 - `demo.py` — lightweight Streamlit interface
 - `TECHNICAL_REPORT.md` — technical report
 - `KAGGLE_WRITEUP.md` — submission-ready writeup
-- `DEMO_SCRIPT.md` — <=5 minute demo-video script
-- `SUBMISSION_CHECKLIST.md` — final submission checklist
 
 ## Intended use
 
-This is a research prototype for phenotype analysis and experimental triage. It is **not** a clinical or diagnostic system.
+Research prototype only. It is not a clinical or diagnostic system.
